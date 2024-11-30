@@ -1,4 +1,4 @@
-PRJ_NAME = SenSor_Monitoring_System
+PRJ_NAME = SenSor_System
 
 All:
 	gcc -o $(PRJ_NAME) main.c

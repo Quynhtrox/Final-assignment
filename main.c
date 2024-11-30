@@ -81,6 +81,7 @@ void log_process() {
     while(1) {
         ssize_t bytes = read(fd, buff, sizeof(buff) - 1);
         if (bytes > 0) {
+            buff[bytes] = "\0";
             write(fd, buff, strlen(buff));
         }
     }
