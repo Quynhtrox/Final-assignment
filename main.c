@@ -100,7 +100,6 @@ static void *thr_connection(void *args) {
 
     int server_fd, new_socket_fd;
     struct sockaddr_in servaddr, sensoraddr;
-
     
     //Tạo socket TCP
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -171,9 +170,9 @@ static void *thr_data(void *args) {
 }
 
 //Storage manager thread
-static void *thr_storage(void *args) {
+// static void *thr_storage(void *args) {
 
-}
+// }
 
 //Child process
 void log_process() {
@@ -216,17 +215,17 @@ int main(int argc, char *argv[])
     } else if (pid > 0) { //Parent process
         printf("Im main process. My PID: %d\n", getpid());
 
-        pthread_create(&threadconn, NULL, &thr_connection, NULL);
-        pthread_create(&threaddata, NULL, &thr_data, NULL);
-        pthread_create(&threadstorage, NULL, &thr_storage, NULL);
+        pthread_create(&threadconn, NULL, &thr_connection, &thread_ares);
+        // pthread_create(&threaddata, NULL, &thr_data, &shared_data);
+        // pthread_create(&threadstorage, NULL, &thr_storage, &shared_data);
 
         while(1);
         wait(NULL);
     }
 
     pthread_join(threadconn, NULL);
-    pthread_join(threaddata, NULL);
-    pthread_join(threadstorage, NULL);
+    // pthread_join(threaddata, NULL);
+    // pthread_join(threadstorage, NULL);
 
     return 0;
 }
