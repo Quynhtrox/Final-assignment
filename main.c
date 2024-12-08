@@ -9,10 +9,12 @@
 #include<fcntl.h>
 #include<string.h>
 #include<time.h>
+#include<sqlite3.h>
 
 #define MAX_BUFFER_SIZE     1024
 #define FIFO_FILE           "./logFIFO"
 #define LOG_FILE            "./gateway.log"
+#define SQL_database        "database.db"
 
 pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t data_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -170,9 +172,64 @@ static void *thr_data(void *args) {
 }
 
 //Storage manager thread
-// static void *thr_storage(void *args) {
+static void *thr_storage(void *args) {
+    
+    static int b = 0;
+    b++;
 
-// }
+    Shared_data *shared = (Shared_data *)args;
+    
+    sqlite3 *db;        //Con trỏ cơ sở dữ liệu
+    char *errMsg = 0;   //Thông báo mã lỗi
+    int rc;             //Mã trả về từ SQLite
+    const char *sql;    //Câu lệnh SQL
+
+    while (1) {
+        Sensor_data data = get_data(shared);
+        if (data.SensorNodeID != 0) {
+            //Ghi dữ liệu vào SQL database
+            char log_message[MAX_BUFFER_SIZE];
+            rc = sqlite3_open(SQL_database, &db); //Mở hoặc tạo database
+            
+            if ((rc != SQLITE_OK) & (b <= 1)) {
+                snprintf(log_message, sizeof(log_message), "Connection to SQL server lost.\n");
+                log_events(log_message);
+            } else if ((rc == SQLITE_OK) & (b <= 1)) {
+                snprintf(log_message, sizeof(log_message), "Connection to SQL server established.\n");
+                log_events(log_message);
+            }
+            //Thực thi câu lệnh SQL
+            if (b <= 1) {
+                sql =   "CREATE TABLE IF NOT EXISTS Sensor_data (" \
+                        "SENSOR_ID INTERGER PRIMARY KEY," \
+                        "Temperature FLOAT );";
+
+                //Tạo bảng
+                rc = sqlite3_exec(db, sql, NULL, 0, &errMsg);
+                if (rc != SQLITE_OK) {
+                    snprintf(log_message, sizeof(log_message), "Created new table %s failed.\n", SQL_database);
+                    log_events(log_message);
+                } else {
+                    snprintf(log_message, sizeof(log_message), "New table %s created.\n",SQL_database);
+                    log_events(log_message);
+                }
+            }
+
+            //Chèn dữ liệu vào bảng
+            sql = "INSERT INTO Sensor_data (SENSOR_ID, Temperature) VALUES (data.SensorNodeID, data.temperature)";
+            rc = sqlite3_exec(db, sql, NULL, 0, &errMsg);
+            if (rc != SQLITE_OK) {
+                snprintf(log_message, sizeof(log_message), "Data inserted fail\n");
+                log_events(log_message);
+            } else {
+                snprintf(log_message, sizeof(log_message), "Data inserted succeessfully\n");
+                log_events(log_message);
+            }
+
+            sqlite3_close(db);
+        }
+    }
+}
 
 //Child process
 void log_process() {
@@ -216,16 +273,16 @@ int main(int argc, char *argv[])
         printf("Im main process. My PID: %d\n", getpid());
 
         pthread_create(&threadconn, NULL, &thr_connection, &thread_ares);
-        // pthread_create(&threaddata, NULL, &thr_data, &shared_data);
-        // pthread_create(&threadstorage, NULL, &thr_storage, &shared_data);
+        pthread_create(&threaddata, NULL, &thr_data, &shared_data);
+        pthread_create(&threadstorage, NULL, &thr_storage, &shared_data);
 
         while(1);
         wait(NULL);
     }
 
     pthread_join(threadconn, NULL);
-    // pthread_join(threaddata, NULL);
-    // pthread_join(threadstorage, NULL);
+    pthread_join(threaddata, NULL);
+    pthread_join(threadstorage, NULL);
 
     return 0;
 }

@@ -3,7 +3,7 @@ FIFO_FILE = logFIFO
 LOG_FILE = gateway.log
 
 all:
-	gcc -o $(PRJ_NAME) main.c
+	gcc -o $(PRJ_NAME) main.c -lsqlite3
 
 clean:
 	rm -rf $(PRJ_NAME)
